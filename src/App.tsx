@@ -5,7 +5,7 @@ import { AppearanceProvider, useColorScheme } from 'react-native-appearance';
 import { AuthProvider, useAuthContext } from './providers/AuthProvider';
 import { DeviceProvider, useDeviceContext } from './providers/DeviceProvider';
 import OneSignal, { DeviceInfo, OpenResult, ReceivedNotification } from 'react-native-onesignal';
-import React, { useEffect } from 'react';
+import React, { ReactElement, useEffect } from 'react';
 import { ThemeProvider, ThemeType } from '@dooboo-ui/native-theme';
 import { dark, light } from './theme';
 
@@ -33,18 +33,24 @@ const onIds = (device: DeviceInfo): void => {
   console.log('Device info: ', device);
 };
 
-function App(): React.ReactElement {
-  const colorScheme = useColorScheme();
+let timer: number;
 
+function AppWithTheme(): ReactElement {
   const { setUser } = useAuthContext();
   const { setDeviceType } = useDeviceContext();
 
-  const { loading, data, error } = useQuery<{ me: User}, {}>(QUERY_ME);
+  const { loading, data } = useQuery<{ me: User}, {}>(QUERY_ME);
 
   const setDevice = async (): Promise<void> => {
     const deviceType = await Device.getDeviceTypeAsync();
     setDeviceType(deviceType);
   };
+
+  useEffect(() => {
+    return (): void => {
+      if (timer) { clearTimeout(timer); }
+    };
+  }, []);
 
   useEffect(() => {
     if (data && data.me) {
@@ -54,10 +60,14 @@ function App(): React.ReactElement {
     }
     setDevice();
 
-    if (!loading) {
-      SplashScreen.hide();
-    }
+    timer = setTimeout(() => SplashScreen.hide(), 1000);
   }, [loading]);
+
+  return <RootNavigator />;
+}
+
+function App(): ReactElement {
+  const colorScheme = useColorScheme();
 
   useEffect(() => {
     OneSignal.init(Config.ONESIGNAL_APP_ID, { kOSSettingsKeyAutoPrompt: true });
@@ -80,12 +90,12 @@ function App(): React.ReactElement {
         colorScheme === 'dark' ? ThemeType.DARK : ThemeType.LIGHT
       }
     >
-      <RootNavigator />
+      <AppWithTheme/>
     </ThemeProvider>
   );
 }
 
-function ProviderWrapper(): React.ReactElement {
+function ProviderWrapper(): ReactElement {
   return (
     <AppearanceProvider>
       <DeviceProvider>
